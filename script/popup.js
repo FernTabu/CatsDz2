@@ -2,23 +2,23 @@ export class Popup {
     constructor(className) {
         this._className = className;
         this.popup = document.querySelector(`.${className}`)
-        this._handleEscUp = this._handleEscUp.bind(this) // закрытие нажатием кнопки Esc (Escape)
-    }// закрепили контекст, чтобы можно было использовать в стр16 и далее
+        this._handleEscUp = this._handleEscUp.bind(this)
+    }
 
     _handleEscUp(evt) {
-        if (evt.key === 'Escape') {// при событии нажатие кнопки Esc.. закрытие 
+        if (evt.key === 'Escape') {
             this.close()
         }
     }
 
     open() {
-        this.popup.classList.add('popup_active');// окрытие окна формы добавления котика, через активацию видимости
-        document.addEventListener('keyup', this._handleEscUp) // вызов обработчика события, может понадобиться
+        this.popup.classList.add('popup_active');
+        document.addEventListener('keyup', this._handleEscUp)
     }
 
     close() {
-        this.popup.classList.remove('popup_active');// скрытие/
-        document.removeEventListener('keyup', this._handleEscUp)//  удаление обработчика события, больше не нужен
+        this.popup.classList.remove('popup_active');
+        document.removeEventListener('keyup', this._handleEscUp)
     }
 
     setContent(contentNode) {
@@ -27,10 +27,10 @@ export class Popup {
         containerContent.append(contentNode);
 
     }
-    setEventListener() {// скрытие/закрытие по клику
+    setEventListener() {
         this.popup.addEventListener('click', (evt) => {
             if (evt.target.classList.contains(this._className) || evt.target.closest('.popup__close')) {
-                this.close() // условие закрытия с учетом ближайшего элемента нажатия
+                this.close()
             }
         })
     }

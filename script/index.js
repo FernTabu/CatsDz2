@@ -5,14 +5,13 @@ import { PopupImage } from "./popupImage.js";
 import { CatInfo } from "./catInfo.js";
 
 
-const cardsContainer = document.querySelector('.cards');// найдем контейнер
-const btnOpenPopupForm = document.querySelector('#add'); // получение кнопки добавления
-const formCatAdd = document.querySelector('#popup-form-cat'); // нашли/взяли форму добавления по id
-const popupAddCat = new Popup('popup-add-cats'); // создание экземпляра класса Popup
-popupAddCat.setEventListener();// сразу вешаем обработчик события по клику (закрытие в будущем)
-
-const btnOpenLogin = document.querySelector('#login'); 
-const formlogin = document.querySelector('#popup-form-login'); 
+const cardsContainer = document.querySelector('.cards');
+const btnOpenPopupForm = document.querySelector('#add');
+const formCatAdd = document.querySelector('#popup-form-cat');
+const popupAddCat = new Popup('popup-add-cats');
+popupAddCat.setEventListener();
+const btnOpenLogin = document.querySelector('#login');
+const formlogin = document.querySelector('#popup-form-login');
 const login = new Popup('popup-login');
 login.setEventListener()
 
@@ -22,16 +21,20 @@ popupCatInfo.setEventListener()
 const popupImage = new PopupImage('popup-image')
 popupImage.setEventListener()
 
-const catsInfoInstence = new CatInfo('#cats-info-template', handleDeleteCat)
+const catsInfoInstence = new CatInfo(
+    '#cats-info-template',
+    handleEditCatInfo,
+    handleDeleteCat,
+    handleLike)
 const catsInfoElement = catsInfoInstence.getElement()
 
-function serializeForm(elements) {// функция извлечения информации из формы
+function serializeForm(elements) {
     const formData = {};
 
     elements.forEach(input => {
-        if (input.type === 'submit') return;// кнопка не содержит данных, не нужна для обработки
+        if (input.type === 'submit') return;
         if (input.type !== 'checkbox') {
-            formData[input.name] = input.value;// ключ: значение
+            formData[input.name] = input.value;
         };
         if (input.type === 'checkbox') {
             formData[input.name] = input.checked;
@@ -43,37 +46,32 @@ function serializeForm(elements) {// функция извлечения инф�
 }
 
 function createCat(dataCat) {
-    const cardInstance = new Card(dataCat, '#card-template', handleCatImage, handleCatTitle); //создать карточку из данных
-    const newCardElement = cardInstance.getElement(); //собрать данные из формы
-    cardsContainer.append(newCardElement);   //добавить карточку на страницу
+    const cardInstance = new Card(dataCat, '#card-template', handleCatTitle, handleCatImage, handleLike); //создать карточку из данных
+    const newCardElement = cardInstance.getElement();
+    cardsContainer.append(newCardElement);
 
 }
-function handleFormAddCat(e) { //функция добавления из формы
-    e.preventDefault(); //отмена отправки формы (событие по умолчанию для submit)
-    const elementsFormCat = [...formCatAdd.elements]; //html коллекцию преобразуем в массив(оборачиваем в массив и через сприд Spread разложить)
-    const dataFromForm = serializeForm(elementsFormCat)//(объект)данные полученные, через функцию извлечения информации из формы
-    console.log(dataFromForm);
-    api.addNewCat(dataFromForm);// добавление кота на сервер
+function handleFormAddCat(e) {
+    e.preventDefault();
+    const elementsFormCat = [...formCatAdd.elements];
+    const dataFromForm = serializeForm(elementsFormCat)
+    api.addNewCat(dataFromForm);
     createCat(dataFromForm)
-    updateLocalStorege(data, { type: 'ADD_CAT' })
+    updateLocalStorage(dataFromForm, { type: 'ADD_CAT' })
     popupAddCat.close();
 }
 
 function handleFormLogin(e) {
-    e.preventDefault(); 
-    const loginDate = [...formlogin.elements]; 
+    e.preventDefault();
+    const loginDate = [...formlogin.elements];
     const serializeLogin = serializeForm(loginDate)
-    console.log(serializeLogin);
     Cookies.set('email', `${serializeLogin.email}`)
-    console.log('email', `${serializeLogin.email}`);
     btnOpenPopupForm.classList.remove('visibility-hidden');
     btnOpenLogin.classList.add('visibility-hidden');
     login.close();
 }
 
-function handleCatImage(dataCat) {
-    popupImage.open(dataCat);
-}
+
 
 function handleCatTitle(cardInstance) {
     catsInfoInstence.setData(cardInstance);
@@ -84,48 +82,74 @@ function handleCatTitle(cardInstance) {
 function handleDeleteCat(cardInstance) {
     api.deleteCatById(cardInstance.getId()).then(() => {
         cardInstance.deleteView()
-        // updateLocalStorege(cardInstance.getId(),{type: 'DELETE_CAT'})
-        popupCatInfo.open();    
+        updateLocalStorage(cardInstance.getData(), { type: 'DELETE_CAT' })
+        popupCatInfo.close();
     })
-  
+
 }
 
+function handleCatImage(dataCat) {
+    popupImage.open(dataCat);
+}
 
-btnOpenPopupForm.addEventListener('click', () => popupAddCat.open())// повешали слушатель события, по клику колбек popupAddCat.open открывает форму добавления котика
-formCatAdd.addEventListener('submit', handleFormAddCat)// 
-btnOpenLogin.addEventListener('click', () => login.open())// повешали слушатель события, по клику колбек .open открывает форму авторизации
+function handleEditCatInfo(data, cardInstance) {
+    const { age, description, name, id } = data;
+    api.updateCatById(id, { age, description, name })
+        .then(() => {
+            cardInstance.setData(data)
+            cardInstance.updateView();
+            popupCatInfo.close();
+        })
+    updateLocalStorage(data, { type: 'EDIT_CAT' })
+
+}
+
+function handleLike(data, cardInstance) {
+    const { id, favourite } = data;
+    api.updateCatById(id, { favourite })
+        .then(() => {
+            if (cardInstance) {
+                cardInstance.setData(data);
+                cardInstance.updateView();
+            }
+            updateLocalStorage(data, { type: 'EDIT_CAT' })
+            console.log('Like changed');
+        })
+}
+
+btnOpenPopupForm.addEventListener('click', () => popupAddCat.open())
+formCatAdd.addEventListener('submit', handleFormAddCat)
+btnOpenLogin.addEventListener('click', () => login.open())
 formlogin.addEventListener('submit', handleFormLogin)
 
 
 const isLogin = Cookies.get('email');
 if (!isLogin) {
-    login.open(); 
+    login.open();
     btnOpenPopupForm.classList.add('visibility-hidden');
 }
 
-const getCats = function (api) {// добавление котов с сервера
+const getCats = function (api) {
     api.getAllCats().then(res => res.json()).then((data) =>
         data.data.forEach((catData) => {
             createCat(catData)
+            localStorage.setItem('cats', JSON.stringify(data.data));
         })
     )
 }
 
-// getCats(api);
+updateLocalStorage(getCats(api), { type: 'ALL_CATS' })
 
-
-function setDataRefresh(minutes, key) { //установка интервала обновления
+function setDataRefresh(minutes, key) {
     const setTime = new Date(new Date().getTime() + minutes * 60000);
     localStorage.setItem(key, setTime);
 }
 
 function checkLocalStorage() {
-    const localData = JSON.parse(localStorage.getItem("cats"));
-    console.log(localData);
+    const localData = JSON.parse(localStorage.getItem('cats'));
     const getTimeExpires = localStorage.getItem('catsRefrash');
-    console.log(getTimeExpires);
 
-    if (localData && localData.lenght && (new Date() < Date(getTimeExpires))) {
+    if (localData && localData.length && (new Date() < Date(getTimeExpires))) {
         localData.forEach(catData => {
             createCat(catData)
         })
@@ -133,14 +157,14 @@ function checkLocalStorage() {
         api.getAllCats().then(res => res.json()).then((data) =>
             data.data.forEach((catData) => {
                 createCat(catData);
-                console.log(api.getAllCats().then(res => res.json()));
             }))
-        updateLocalStorege(Data, {type: 'ALL_CATS' })
+        updateLocalStorage(data, { type: 'ALL_CATS' });
+        console.log(data);
     }
 }
 
-function updateLocalStorege(data, action) {
-    const oldStorage = JSON.parse(localStorage.getItem('cats'))
+function updateLocalStorage(data, action) {
+    const oldStorage = JSON.parse(localStorage.getItem('cats'));
     switch (action.type) {
         case 'ADD_CAT':
             oldStorage.push(data);
@@ -149,19 +173,20 @@ function updateLocalStorege(data, action) {
         case 'ALL_CATS':
             localStorage.setItem('cats', JSON.stringify(data));
             setDataRefresh(5, 'catsRefresh')
+            console.log(data);
             return;
         case 'DELETE_CAT':
-            const newStorege = oldStorage.filter(cat => cat.id !== data);
-            localStorage.setItem('cats', JSON.stringify(data));
+            const newStorage = oldStorage.filter(cat => cat.id !== data.id);
+            localStorage.setItem('cats', JSON.stringify(newStorage));
             return;
         case 'EDIT_CAT':
-            const updateStorege = oldStorage.map(cat => cat.id === data.id ? data : cat);
-            localStorage.setItem('cats', JSON.stringify(data));
-            return;    
+            const updateStorage = oldStorage.map(cat => cat.id === data.id ? data : cat);
+            localStorage.setItem('cats', JSON.stringify(updateStorage));
+            return;
         default:
             break;
     }
-    
+
 }
 checkLocalStorage()
 
